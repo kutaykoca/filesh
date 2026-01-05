@@ -65,4 +65,4 @@ MIT License
 ## Links
 
 - [GitHub](https://github.com/kutaykoca/filesh)
-- [Issues](https://github.com/kutaykoca/filesh/issues)
+- [kutaykoca.com](https://kutaykoca.com)

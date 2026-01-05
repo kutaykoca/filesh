@@ -20,6 +20,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+PYPI_README.md
 
 # Virtual environments
 venv/
@@ -37,6 +38,7 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+.gitignore
 
 # Testing
 .pytest_cache/

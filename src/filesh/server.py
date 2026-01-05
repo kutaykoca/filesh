@@ -9,16 +9,238 @@ import sys
 import socket
 import argparse
 import mimetypes
-import shutil
+import secrets
 from datetime import datetime
 from urllib.parse import unquote, quote
-from flask import Flask, request, send_file, render_template_string, abort, jsonify
+from flask import Flask, request, send_file, render_template_string, abort, jsonify, session, redirect
 
 app = Flask(__name__)
 
 # Global config
 ROOT_DIR = os.getcwd()
 SHOW_HIDDEN = False
+SESSION_CODE = None
+
+def generate_session_code():
+    """Generate a 6-digit session code"""
+    return ''.join([str(secrets.randbelow(10)) for _ in range(6)])
+
+def is_localhost():
+    """Check if request is from localhost"""
+    remote = request.remote_addr
+    return remote in ('127.0.0.1', '::1', 'localhost')
+
+def require_auth():
+    """Check if user needs authentication"""
+    if is_localhost():
+        return False
+    return not session.get('authenticated')
+
+AUTH_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>filesh - Access Code</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --background: #ffffff;
+            --foreground: #09090b;
+            --card: #ffffff;
+            --primary: #18181b;
+            --primary-foreground: #fafafa;
+            --secondary: #f4f4f5;
+            --muted: #f4f4f5;
+            --muted-foreground: #71717a;
+            --border: #e4e4e7;
+            --ring: #a1a1aa;
+            --radius: 0.5rem;
+            --destructive: #ef4444;
+        }
+        .dark {
+            --background: #09090b;
+            --foreground: #fafafa;
+            --card: #09090b;
+            --primary: #fafafa;
+            --primary-foreground: #18181b;
+            --secondary: #27272a;
+            --muted: #27272a;
+            --muted-foreground: #a1a1aa;
+            --border: #27272a;
+            --ring: #d4d4d8;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--background);
+            color: var(--foreground);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .auth-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 32px;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: var(--muted-foreground);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        .code-inputs {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+        .code-input {
+            width: 44px;
+            height: 52px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--background);
+            color: var(--foreground);
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .code-input:focus {
+            border-color: var(--ring);
+        }
+        .code-input.error {
+            border-color: var(--destructive);
+            animation: shake 0.3s ease;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: var(--radius);
+            border: none;
+            background: var(--primary);
+            color: var(--primary-foreground);
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .error-msg {
+            color: var(--destructive);
+            font-size: 13px;
+            margin-top: 16px;
+            display: none;
+        }
+        .error-msg.show { display: block; }
+    </style>
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'light';
+            if (theme === 'dark') document.documentElement.classList.add('dark');
+        })();
+    </script>
+</head>
+<body>
+    <div class="auth-card">
+        <div class="logo">filesh</div>
+        <p class="subtitle">Enter the access code shown in terminal</p>
+        <form id="authForm" onsubmit="return submitCode(event)">
+            <div class="code-inputs">
+                <input type="text" class="code-input" maxlength="1" inputmode="numeric" pattern="[0-9]" required>
+                <input type="text" class="code-input" maxlength="1" inputmode="numeric" pattern="[0-9]" required>
+                <input type="text" class="code-input" maxlength="1" inputmode="numeric" pattern="[0-9]" required>
+                <input type="text" class="code-input" maxlength="1" inputmode="numeric" pattern="[0-9]" required>
+                <input type="text" class="code-input" maxlength="1" inputmode="numeric" pattern="[0-9]" required>
+                <input type="text" class="code-input" maxlength="1" inputmode="numeric" pattern="[0-9]" required>
+            </div>
+            <button type="submit" class="btn">Verify</button>
+        </form>
+        <p class="error-msg" id="errorMsg">Invalid code. Please try again.</p>
+    </div>
+    <script>
+        const inputs = document.querySelectorAll('.code-input');
+
+        inputs.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '');
+                e.target.value = val;
+                if (val && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const paste = (e.clipboardData || window.clipboardData).getData('text');
+                const digits = paste.replace(/[^0-9]/g, '').slice(0, 6);
+                digits.split('').forEach((d, i) => {
+                    if (inputs[i]) inputs[i].value = d;
+                });
+                if (digits.length > 0) inputs[Math.min(digits.length, 5)].focus();
+            });
+        });
+
+        inputs[0].focus();
+
+        async function submitCode(e) {
+            e.preventDefault();
+            const code = Array.from(inputs).map(i => i.value).join('');
+            if (code.length !== 6) return false;
+
+            const res = await fetch('/auth', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({code: code})
+            });
+
+            if (res.ok) {
+                window.location.href = '/';
+            } else {
+                inputs.forEach(i => {
+                    i.classList.add('error');
+                    i.value = '';
+                });
+                inputs[0].focus();
+                document.getElementById('errorMsg').classList.add('show');
+                setTimeout(() => {
+                    inputs.forEach(i => i.classList.remove('error'));
+                }, 300);
+            }
+            return false;
+        }
+    </script>
+</body>
+</html>
+"""
 
 def get_local_ip():
     """Get local IP address for LAN sharing"""
@@ -666,7 +888,7 @@ TEMPLATE = """
         </div>
 
         {% if parent is not none %}
-        <a href="/browse/{{ parent }}" class="parent-link">
+        <a href="{% if parent %}/browse/{{ parent }}{% else %}/{% endif %}" class="parent-link">
             {{ icons.chevron_up|safe }}
             <span>Parent Directory</span>
         </a>
@@ -687,11 +909,6 @@ TEMPLATE = """
                         <span>Folder</span>
                         <span>{{ d.date }}</span>
                     </div>
-                </div>
-                <div class="file-actions">
-                    <button class="btn btn-icon btn-sm" onclick="event.stopPropagation(); deleteItem('{{ d.path }}', true)" title="Delete">
-                        {{ icons.trash|safe }}
-                    </button>
                 </div>
             </div>
             {% endfor %}
@@ -715,9 +932,6 @@ TEMPLATE = """
                     <a class="btn btn-icon btn-sm" href="/download/{{ f.path }}" onclick="event.stopPropagation()" title="Download">
                         {{ icons.download|safe }}
                     </a>
-                    <button class="btn btn-icon btn-sm" onclick="event.stopPropagation(); deleteItem('{{ f.path }}', false)" title="Delete">
-                        {{ icons.trash|safe }}
-                    </button>
                 </div>
             </div>
             {% endfor %}
@@ -814,22 +1028,6 @@ TEMPLATE = """
                 showToast(data.error || 'Error');
             }
             closeModal('folderModal');
-        }
-
-        async function deleteItem(path, isDir) {
-            if (!confirm('Delete this ' + (isDir ? 'folder' : 'file') + '?')) return;
-            const res = await fetch('/api/delete', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({path: path, is_dir: isDir})
-            });
-            if (res.ok) {
-                showToast('Deleted');
-                setTimeout(() => location.reload(), 300);
-            } else {
-                const data = await res.json();
-                showToast(data.error || 'Error');
-            }
         }
 
         async function previewFile(path, type) {
@@ -931,13 +1129,32 @@ def get_breadcrumbs(path):
             })
     return breadcrumbs
 
+@app.route("/login", methods=["GET"])
+def login():
+    if not require_auth():
+        return redirect('/')
+    return render_template_string(AUTH_TEMPLATE)
+
+@app.route("/auth", methods=["POST"])
+def auth():
+    data = request.get_json()
+    code = data.get('code', '')
+    if code == SESSION_CODE:
+        session['authenticated'] = True
+        return jsonify({"success": True})
+    return jsonify({"error": "Invalid code"}), 401
+
 @app.route("/", methods=["GET"])
 def home():
+    if require_auth():
+        return redirect('/login')
     return browse("")
 
 @app.route("/browse/<path:path>", methods=["GET"])
 @app.route("/browse", defaults={"path": ""}, methods=["GET"])
 def browse(path):
+    if require_auth():
+        return redirect('/login')
     path = unquote(path)
     full = safe_join(path)
 
@@ -1005,6 +1222,8 @@ def browse(path):
 
 @app.route("/upload", methods=["POST"])
 def upload():
+    if require_auth():
+        return jsonify({"error": "Unauthorized"}), 401
     if 'file' not in request.files:
         return jsonify({"error": "No file"}), 400
 
@@ -1022,6 +1241,8 @@ def upload():
 
 @app.route("/download/<path:path>")
 def download(path):
+    if require_auth():
+        return redirect('/login')
     path = unquote(path)
     full = safe_join(path)
     if not os.path.isfile(full):
@@ -1030,6 +1251,8 @@ def download(path):
 
 @app.route("/raw/<path:path>")
 def raw(path):
+    if require_auth():
+        return redirect('/login')
     path = unquote(path)
     full = safe_join(path)
     if not os.path.isfile(full):
@@ -1039,6 +1262,8 @@ def raw(path):
 
 @app.route("/api/mkdir", methods=["POST"])
 def mkdir():
+    if require_auth():
+        return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json()
     path = data.get('path', '')
     name = data.get('name', '')
@@ -1058,32 +1283,11 @@ def mkdir():
     except OSError as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/delete", methods=["POST"])
-def delete():
-    data = request.get_json()
-    path = data.get('path', '')
-    is_dir = data.get('is_dir', False)
 
-    if not path:
-        return jsonify({"error": "Path required"}), 400
-
-    full = safe_join(unquote(path))
-    if os.path.realpath(full) == os.path.realpath(ROOT_DIR):
-        return jsonify({"error": "Cannot delete root"}), 400
-
-    try:
-        if is_dir:
-            shutil.rmtree(full)
-        else:
-            os.remove(full)
-        return jsonify({"success": True})
-    except OSError as e:
-        return jsonify({"error": str(e)}), 500
-
-__version__ = "1.0.2"
+__version__ = "1.1.1"
 
 def main():
-    global ROOT_DIR, SHOW_HIDDEN
+    global ROOT_DIR, SHOW_HIDDEN, SESSION_CODE
 
     parser = argparse.ArgumentParser(
         prog='filesh',
@@ -1097,8 +1301,7 @@ Examples:
   filesh -p 3000 ~/Music    Share Music on port 3000
   filesh --hidden           Show hidden files
 
-More info: https://github.com/kutaykoca/filesh
-        """
+"""
     )
 
     parser.add_argument('directory', nargs='?', default=os.getcwd(),
@@ -1123,15 +1326,28 @@ More info: https://github.com/kutaykoca/filesh
         print(f"Error: '{ROOT_DIR}' is not a valid directory")
         sys.exit(1)
 
+    # Generate session code and set secret key
+    SESSION_CODE = generate_session_code()
+    app.secret_key = secrets.token_hex(32)
+
     local_ip = get_local_ip()
 
     if not args.quiet:
-        print(f"\n  filesh v{__version__}")
-        print(f"  {'─' * 20}")
-        print(f"  Sharing: {ROOT_DIR}")
+        print()
+        print(f"  filesh v{__version__}")
+        print()
         print(f"  Local:   http://127.0.0.1:{args.port}")
         print(f"  Network: http://{local_ip}:{args.port}")
-        print(f"\n  Press Ctrl+C to stop\n")
+        print()
+        print(f"  Access Code: {SESSION_CODE}")
+        print()
+        print(f"  Ctrl+C to stop")
+        print()
+
+    # Suppress Flask's default output
+    import logging
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
 
     app.run(host=args.host, port=args.port, debug=False, threaded=True)
 
