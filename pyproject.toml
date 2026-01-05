@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "filesh"
+version = "1.0.2"
+description = "Simple and modern LAN file sharing server with web UI"
+readme = "PYPI_README.md"
+license = "MIT"
+authors = [
+    { name = "Kutay Koca" }
+]
+keywords = [
+    "file-sharing",
+    "lan",
+    "http-server",
+    "file-server",
+    "local-network",
+    "web-ui",
+    "upload",
+    "download"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: System :: Networking",
+    "Topic :: Utilities"
+]
+requires-python = ">=3.8"
+dependencies = [
+    "flask>=2.0.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/kutaykoca/filesh"
+Repository = "https://github.com/kutaykoca/filesh"
+Issues = "https://github.com/kutaykoca/filesh/issues"
+
+[project.scripts]
+filesh = "filesh:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/filesh"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/README.md",
+    "/LICENSE"
+]
