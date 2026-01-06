@@ -4,18 +4,6 @@ Simple and modern LAN file sharing server with a beautiful web UI.
 
 Share files and folders across your local network with ease. Just run `filesh` and access from any device on the same network.
 
-## Screenshots
-
-| Light Mode | Dark Mode |
-|------------|-----------|
-| ![Light Mode](screenshots/1.png) | ![Dark Mode](screenshots/2.png) |
-
-### QR Code for Mobile Access
-![QR Code](screenshots/3.png)
-
-### Terminal Output
-![Terminal Output](screenshots/4.png)
-
 ## Features
 
 - **Modern Web UI** - Clean, responsive interface with light/dark mode
@@ -99,6 +87,18 @@ filesh -q
 Open the Network URL on any device connected to the same network to access the shared files.
 
 **Security Note:** When accessing from other devices on the network, users will be prompted to enter the 6-digit access code shown in the terminal. Localhost connections (127.0.0.1) bypass this requirement for convenience.
+
+## Screenshots
+
+| Light Mode | Dark Mode |
+|------------|-----------|
+| ![Light Mode](screenshots/1.png) | ![Dark Mode](screenshots/2.png) |
+
+### QR Code for Mobile Access
+![QR Code](screenshots/3.png)
+
+### Terminal Output
+![Terminal Output](screenshots/4.png)
 
 ## How It Works
 
