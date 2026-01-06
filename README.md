@@ -13,15 +13,18 @@ Share files and folders across your local network with ease. Just run `filesh` a
 ### QR Code for Mobile Access
 ![QR Code](screenshots/3.png)
 
+### Terminal Output
+![Terminal Output](screenshots/4.png)
+
 ## Features
 
 - **Modern Web UI** - Clean, responsive interface with light/dark mode
+- **Secure Access** - 6-digit access code required for network connections (localhost is unrestricted)
 - **Drag & Drop Upload** - Simply drag files to upload
 - **Multi-file Upload** - Upload multiple files at once with progress bar
 - **File Preview** - Preview images, videos, audio, and text files
 - **QR Code** - Scan to connect from mobile devices instantly
 - **Create Folders** - Organize files by creating new folders
-- **Delete Files** - Remove files and folders from the web interface
 - **File Icons** - Distinct icons for different file types
 - **Cross-platform** - Works on Windows, macOS, and Linux
 
@@ -83,16 +86,19 @@ filesh -q
 ### Output
 
 ```
-  filesh v1.0.0
-  ────────────────────
-  Sharing: /home/user/Downloads
+  filesh v1.1.1
+
   Local:   http://127.0.0.1:8080
   Network: http://192.168.1.100:8080
 
-  Press Ctrl+C to stop
+  Access Code: 847291
+
+  Ctrl+C to stop
 ```
 
 Open the Network URL on any device connected to the same network to access the shared files.
+
+**Security Note:** When accessing from other devices on the network, users will be prompted to enter the 6-digit access code shown in the terminal. Localhost connections (127.0.0.1) bypass this requirement for convenience.
 
 ## How It Works
 
