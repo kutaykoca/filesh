@@ -13,6 +13,7 @@ import secrets
 from datetime import datetime
 from urllib.parse import unquote, quote
 from flask import Flask, request, send_file, render_template_string, abort, jsonify, session, redirect
+import qrcode
 
 app = Flask(__name__)
 
@@ -1284,7 +1285,7 @@ def mkdir():
         return jsonify({"error": str(e)}), 500
 
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 
 def main():
     global ROOT_DIR, SHOW_HIDDEN, SESSION_CODE
@@ -1333,13 +1334,30 @@ Examples:
     local_ip = get_local_ip()
 
     if not args.quiet:
+        network_url = f"http://{local_ip}:{args.port}"
+
         print()
         print(f"  filesh v{__version__}")
         print()
         print(f"  Local:   http://127.0.0.1:{args.port}")
-        print(f"  Network: http://{local_ip}:{args.port}")
+        print(f"  Network: {network_url}")
         print()
         print(f"  Access Code: {SESSION_CODE}")
+        print()
+
+        # Generate QR code for terminal
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=1,
+            border=1
+        )
+        qr.add_data(network_url)
+        qr.make(fit=True)
+
+        # Print QR code
+        print("  Scan to connect:")
+        qr.print_ascii(invert=True)
         print()
         print(f"  Ctrl+C to stop")
         print()

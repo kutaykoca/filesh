@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "filesh"
-version = "1.1.1"
+version = "1.2.0"
 description = "Simple and modern LAN file sharing server with web UI"
 readme = "PYPI_README.md"
 license = "MIT"
@@ -41,7 +41,8 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    "flask>=2.0.0"
+    "flask>=2.0.0",
+    "qrcode>=7.0"
 ]
 
 
